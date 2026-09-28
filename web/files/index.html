@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrderPilot — Agentic Food Ordering Copilot (Go)</title>
+<meta name="description" content="Watch an AI agent plan, budget and place food orders end-to-end. Built in Go: typed tool-calling, budget guardrails, live order tracking.">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🛵</text></svg>">
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark">🛵</span>
+      <span class="brand-text">Order<b>Pilot</b></span>
+    </a>
+    <div class="nav-tags">
+      <span class="tag tag-live" id="live-badge">● LIVE</span>
+      <span class="tag">Go</span>
+      <span class="tag">Agentic AI</span>
+      <span class="tag">Llama-3.1</span>
+      <a class="tag tag-link" href="https://github.com/gorredinesh21/orderpilot" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <section class="hero" id="hero">
+    <h1>An AI agent that actually <span class="accent">orders your food</span>.</h1>
+    <p class="sub">OrderPilot plans multi-step orders with typed tool calls, respects a hard budget guardrail,
+    places one order per restaurant, and tracks live deliveries — all orchestrated by a Go backend. Watch it think.</p>
+    <div class="steps">
+      <div class="step"><div class="step-n">1</div><div><b>Say what you want</b><br><span class="mut">craving, area, budget — plain English</span></div></div>
+      <div class="step"><div class="step-n">2</div><div><b>Watch the agent work</b><br><span class="mut">every search, cart add and guardrail check streams live</span></div></div>
+      <div class="step"><div class="step-n">3</div><div><b>Confirm &amp; track</b><br><span class="mut">orders simulate live with delivery partners and ETAs</span></div></div>
+    </div>
+    <div class="examples" id="examples">
+      <button class="chip" data-q="I want spicy Andhra food for 2 under 500 in Koramangala">🌶️ Spicy Andhra under ₹500</button>
+      <button class="chip" data-q="Add a margherita pizza and some garlic bread, budget 400">🍕 Pizza night ₹400</button>
+      <button class="chip" data-q="Get me a biryani and a gulab jamun from the best rated place near HSR">🍛 Best biryani near HSR</button>
+      <button class="chip" data-q="I'm vegetarian — something healthy under 350, and a sweet after">🥗 Veg + sweet under ₹350</button>
+      <button class="chip" data-q="Track my order">📦 Track my order</button>
+    </div>
+  </section>
+
+  <section class="workspace" id="workspace">
+    <div class="chat-col card">
+      <div class="panel-head">
+        <span>Conversation</span>
+        <span class="mode-pill" id="mode-pill" title="planner mode">agent ready</span>
+      </div>
+      <div class="chat-log" id="chat-log"></div>
+      <div class="chat-input-row">
+        <input id="chat-input" type="text" placeholder="e.g. two dosas and filter coffee under 200" autocomplete="off" maxlength="2000">
+        <button id="send-btn" class="btn-primary">Send</button>
+      </div>
+      <div class="status-line" id="status-line">Ready. The agent runs 100% server-side in Go.</div>
+    </div>
+
+    <aside class="side-col">
+      <div class="tabs card">
+        <button class="tab-btn active" data-tab="trace">Agent trace</button>
+        <button class="tab-btn" data-tab="cart">Cart <span class="badge-count" id="cart-count"></span></button>
+        <button class="tab-btn" data-tab="orders">Orders <span class="badge-count" id="orders-count"></span></button>
+      </div>
+      <div class="tab-body card" id="tab-trace">
+        <div class="empty-note">Tool calls the agent makes will appear here — arguments in, results out, budget checks included.</div>
+      </div>
+      <div class="tab-body card hidden" id="tab-cart">
+        <div class="budget-row">
+          <span>Budget ₹</span><input type="number" id="budget-input" min="50" max="20000" value="600">
+          <button class="btn-mini" id="budget-set">Set</button>
+          <span class="mut" id="budget-left"></span>
+        </div>
+        <div id="cart-body"><div class="empty-note">Cart is empty. Ask the agent to add dishes.</div></div>
+      </div>
+      <div class="tab-body card hidden" id="tab-orders">
+        <div id="orders-body"><div class="empty-note">No orders yet. The agent checks out after you confirm.</div></div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>OrderPilot — Go + Agentic AI · tool-calling loop, budget guardrails, live order state machine · <a href="https://github.com/gorredinesh21/orderpilot" target="_blank" rel="noopener">source</a></span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
