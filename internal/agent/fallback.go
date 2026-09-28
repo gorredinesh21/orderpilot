@@ -67,7 +67,31 @@ func RunFallback(s *session.Session, userMsg string, emit func(Event)) {
 		return generic
 	}
 
-	// 1) explicit order actions win
+	// 1) extract food intents first so combined requests ("get me a dosa
+	// and place the order") flow add-first, place-second
+	vegOnly := regexp.MustCompile(`\bveg\b|vegetarian|pure veg`).MatchString(msg)
+	cuisine := ""
+	for k, v := range cuisineMap {
+		if strings.Contains(msg, k) {
+			if cuisine == "" || len(k) > len(cuisine) {
+				cuisine = v
+			}
+		}
+	}
+	dishQuery := ""
+	for _, kw := range []string{"biryani", "dosa", "momos", "pizza", "burger", "paneer", "pasta", "salad", "kebab", "tikka", "fried rice", "noodles", "prawn", "fish", "cake", "lassi", "coffee", "chai"} {
+		if strings.Contains(msg, kw) {
+			dishQuery = kw
+			break
+		}
+	}
+	foodIntent := dishQuery != "" || cuisine != "" || vegOnly
+	wantPlace := hasAny(msg, []string{"place the order", "place order", "checkout", "confirm the order", "order it", "go ahead and order", "place my order"})
+
+	s.Mu.Lock()
+	cartHasItems := !s.Cart.Empty()
+	s.Mu.Unlock()
+
 	switch {
 	case hasAny(msg, []string{"track", "where is my order", "order status"}):
 		res := run("track_order", map[string]any{})
@@ -81,20 +105,17 @@ func RunFallback(s *session.Session, userMsg string, emit func(Event)) {
 					m["order_id"], m["restaurant"], m["state"], m["de_name"])})
 			return
 		}
-	case hasAny(msg, []string{"place the order", "place order", "checkout", "confirm the order", "order it", "go ahead and order", "place my order"}):
+	case wantPlace && (!foodIntent || cartHasItems):
+		// nothing to add first (or cart already loaded) → place now;
+		// combined "X and place the order" falls through to the food flow,
+		// which places at the end
 		res := run("place_order", map[string]any{})
 		if m := res; m != nil {
 			if _, bad := m["error"]; bad {
 				emit(Event{Type: EvSay, Mode: "fallback", Text: "The cart is empty — tell me what you'd like first."})
 				return
 			}
-			orders, _ := m["orders"].([]interface{})
-			parts := []string{}
-			for _, o := range orders {
-				om, _ := o.(map[string]any)
-				parts = append(parts, fmt.Sprintf("%v from %v, ETA %v min (₹%v)", om["order_id"], om["restaurant"], om["eta_min"], om["subtotal"]))
-			}
-			emit(Event{Type: EvSay, Mode: "fallback", Text: "Order placed! " + strings.Join(parts, " | ") + ". Track it live in the Orders panel."})
+			emit(Event{Type: EvSay, Mode: "fallback", Text: orderPlacedText(m)})
 			return
 		}
 	case hasAny(msg, []string{"clear the cart", "clear cart", "empty the cart", "start over"}):
@@ -124,28 +145,8 @@ func RunFallback(s *session.Session, userMsg string, emit func(Event)) {
 		}
 	}
 
-	// 4) veg / cuisine / dish
-	vegOnly := regexp.MustCompile(`\bveg\b|vegetarian|pure veg`).MatchString(msg)
-	cuisine := ""
-	for k, v := range cuisineMap {
-		if strings.Contains(msg, k) {
-			if len(k) > len(cuisine) || (cuisine != "" && v != cuisine && len(k) > 3) {
-				cuisine = v
-			}
-			if cuisine == "" {
-				cuisine = v
-			}
-		}
-	}
-
-	// 5) direct dish search when the message names a dish
-	dishQuery := ""
-	for _, kw := range []string{"biryani", "dosa", "momos", "pizza", "burger", "paneer", "pasta", "salad", "kebab", "tikka", "fried rice", "noodles", "prawn", "fish", "cake", "lassi", "coffee", "chai"} {
-		if strings.Contains(msg, kw) {
-			dishQuery = kw
-			break
-		}
-	}
+	// 4) direct dish search when the message names a dish (veg/cuisine/dish
+	// intents were already extracted above)
 
 	s.Mu.Lock()
 	overBudget := s.Cart.Total() > 0
@@ -298,12 +299,37 @@ func RunFallback(s *session.Session, userMsg string, emit func(Event)) {
 			Text: fmt.Sprintf("Found %s in %s but nothing fits the ₹%d budget. Raise it and I'll retry.", chosen.Name, chosen.Area, budget)})
 		return
 	}
+
+	// 5) combined intent: "...and place the order" → check out right away
+	if wantPlace {
+		res := run("place_order", map[string]any{})
+		if m := res; m != nil {
+			if _, bad := m["error"]; !bad {
+				emit(Event{Type: EvSay, Mode: "fallback",
+					Text: fmt.Sprintf("Picked %s (%s): %s. %s", chosen.Name, chosen.Area,
+						strings.Join(added, ", "), orderPlacedText(m))})
+				return
+			}
+		}
+	}
+
 	s.Mu.Lock()
 	total := s.Cart.Total()
 	s.Mu.Unlock()
 	emit(Event{Type: EvSay, Mode: "fallback",
 		Text: fmt.Sprintf("Offline planner picked %s (%s, ⭐%.1f): added %s. Cart ₹%d of ₹%d — say 'place the order' to check out.",
 			chosen.Name, chosen.Area, chosen.Rating, strings.Join(added, ", "), total, budget)})
+}
+
+// orderPlacedText formats a place_order result for the fallback planner.
+func orderPlacedText(m map[string]any) string {
+	orders, _ := m["orders"].([]interface{})
+	parts := []string{}
+	for _, o := range orders {
+		om, _ := o.(map[string]any)
+		parts = append(parts, fmt.Sprintf("%v from %v, ETA %v min (₹%v)", om["order_id"], om["restaurant"], om["eta_min"], om["subtotal"]))
+	}
+	return "Order placed! " + strings.Join(parts, " | ") + ". Track it live in the Orders panel."
 }
 
 func hasAny(s string, words []string) bool {

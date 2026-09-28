@@ -209,12 +209,14 @@ func TestFallbackIntentParsing(t *testing.T) {
 		{"2 dosa and filter coffee in Jayanagar", true, false},
 		{"something sweet, veg, under 250", true, false},
 		{"place the order", false, true},
+		// combined intent: food + placement in one message must add FIRST,
+		// then place (regression: used to place an empty cart)
+		{"one ghee roast dosa and a filter coffee please, then place the order", true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.msg, func(t *testing.T) {
 			s := testSession()
-			if tt.wantPlace {
-				// seed a cart so placement has something to order
+			if tt.wantPlace && !tt.wantAdds {
 				seedCart(t, s)
 			}
 			var says []string
@@ -230,11 +232,11 @@ func TestFallbackIntentParsing(t *testing.T) {
 			count, empty := s.Cart.Count(), s.Cart.Empty()
 			orders := len(s.Orders.All())
 			s.Mu.Unlock()
-			if tt.wantAdds && count == 0 {
+			if tt.wantAdds && !tt.wantPlace && count == 0 {
 				t.Errorf("fallback should have added items for %q (said: %v)", tt.msg, says)
 			}
 			if tt.wantPlace && (orders == 0 || !empty) {
-				t.Errorf("fallback should have placed order for %q: orders=%d empty=%v", tt.msg, orders, empty)
+				t.Errorf("fallback should have placed order for %q: orders=%d empty=%v said=%v", tt.msg, orders, empty, says)
 			}
 		})
 	}
