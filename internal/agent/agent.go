@@ -39,9 +39,10 @@ type Agent struct {
 	MaxSteps int
 }
 
-// New builds an agent over a tool registry.
+// New builds an agent over a tool registry. Step budget is generous: small
+// instruct models routinely burn turns on empty-search recovery.
 func New(llm Client, reg *tools.Registry) *Agent {
-	return &Agent{LLM: llm, Registry: reg, MaxSteps: 10}
+	return &Agent{LLM: llm, Registry: reg, MaxSteps: 16}
 }
 
 // llmTurn is the protocol the model must follow. Kept deliberately small so
@@ -256,6 +257,7 @@ RULES:
 - If a search returns 0 matches, broaden: drop filters one at a time (area first, then price), or switch to search_dishes.
 - If a tool result contains "error", adapt: fix args, remove an item, or suggest raising the budget. Do not repeat a failed call unchanged.
 - Before place_order, confirm the cart with the user UNLESS they already clearly told you to order/checkout.
+- Only say an order was "placed" AFTER place_order returns orders. Until then, say "ready to place".
 - Keep "say" under 25 words; don't apologize repeatedly — just fix and continue. In the final "reply", summarize what was ordered/planned with prices.
 - Do not mention tools, JSON or protocols to the user.
 
