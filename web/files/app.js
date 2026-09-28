@@ -273,8 +273,8 @@
     else setStatus("Could not set budget", true);
   };
 
-  /* health badge */
-  fetch("/healthz").then(r => r.json()).then(h => {
+  /* health badge (public /live — GFE intercepts /healthz on Cloud Run) */
+  fetch("/live").then(r => r.json()).then(h => {
     if (h.llm && h.llm.live) { $("live-badge").textContent = "● LIVE · LLM ON"; setMode("llm"); }
     else { $("live-badge").textContent = "● LIVE · OFFLINE PLANNER"; setMode("fallback"); }
   }).catch(() => {});

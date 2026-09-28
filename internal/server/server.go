@@ -41,7 +41,8 @@ func (s *Server) Handler() http.Handler {
 	static, _ := fs.Sub(web.Assets, "files")
 	mux.Handle("/", http.FileServer(http.FS(static)))
 
-	mux.HandleFunc("GET /healthz", s.health)
+	mux.HandleFunc("GET /healthz", s.health) // internal/startup probes
+	mux.HandleFunc("GET /live", s.health)    // public: GFE intercepts /healthz on ingress
 	mux.HandleFunc("GET /api/restaurants", s.restaurants)
 	mux.HandleFunc("POST /api/chat", s.chat)
 	mux.HandleFunc("GET /api/session/{id}", s.snapshot)
